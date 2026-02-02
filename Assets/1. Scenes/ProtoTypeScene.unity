@@ -444,6 +444,14 @@ PrefabInstance:
       propertyPath: decel
       value: 10
       objectReference: {fileID: 0}
+    - target: {fileID: 3110137745030791252, guid: 04dc628a475b04148bc6c92eb75bd8c6, type: 3}
+      propertyPath: m_Height
+      value: 1.8
+      objectReference: {fileID: 0}
+    - target: {fileID: 3110137745030791252, guid: 04dc628a475b04148bc6c92eb75bd8c6, type: 3}
+      propertyPath: m_Center.y
+      value: 0.9
+      objectReference: {fileID: 0}
     - target: {fileID: 7381584706562745675, guid: 04dc628a475b04148bc6c92eb75bd8c6, type: 3}
       propertyPath: m_LocalPosition.x
       value: 0
