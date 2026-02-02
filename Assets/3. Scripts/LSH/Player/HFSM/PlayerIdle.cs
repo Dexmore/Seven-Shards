@@ -1,39 +1,30 @@
-using UnityEngine;
-
-public class PlayerIdle : PlayerState
+﻿public sealed class PlayerIdle : PlayerState
 {
-    private PlayerStateMachine fsm;
-    private PlayerController controller;
+    public PlayerIdle(PlayerStateMachine fsm, PlayerController c) : base(fsm, c) { }
 
-    public PlayerIdle(PlayerStateMachine fsm, PlayerController controller)
-    {
-        this.fsm = fsm;
-        this.controller = controller;
-    }
-
-    public void Enter()
+    public override void Enter()
     {
         controller.motor.SetSpeed(controller.motor.walkSpeed);
-        controller.playerAnim.SetSpeed01(0f);
+        controller.motor.StopMove();
     }
 
-    public void Update()
+    public override void Update()
     {
-        if (!controller.HasMoveInput)
+        if (controller.JumpPressedThisFrame && controller.motor.IsGrounded)
         {
-            controller.motor.StopMove();
-            controller.playerAnim.SetSpeed01(controller.motor.GetSpeed01());
+            fsm.EnterAir();
             return;
         }
 
-        if (controller.IsRunPressed)
-            fsm.ChangeState(new PlayerRun(fsm, controller));
-        else
-            fsm.ChangeState(new PlayerWalk(fsm, controller));
+        // 스무스 감속 애니
+        controller.playerAnim.SetSpeed01(controller.motor.GetSpeed01());
+
+        if (!controller.HasMoveInput) return;
+
+        fsm.ChangeLocomotion(controller.IsRunHeld
+            ? PlayerStateMachine.Locomotion.Run
+            : PlayerStateMachine.Locomotion.Walk);
     }
 
-
-
-
-    public void Exit() { }
+    public override void Exit() { }
 }

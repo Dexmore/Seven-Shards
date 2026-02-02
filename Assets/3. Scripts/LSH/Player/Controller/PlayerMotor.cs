@@ -1,45 +1,58 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 [RequireComponent(typeof(Rigidbody))]
-public class PlayerMotor : MonoBehaviour
+public sealed class PlayerMotor : MonoBehaviour
 {
     [Header("Speed")]
     public float walkSpeed = 4f;
     public float runSpeed = 7f;
 
-    [Header("Accel/Decel")]
+    [Header("Accel / Decel")]
     public float accel = 25f;
-    public float decel = 12f;
+    public float decel = 40f;
 
-    [Header("Turning")]
-    public float turnRateDeg = 1080f;
+    [Header("Turn Rate (deg/sec)")]
+    public float walkTurnRateDeg = 360f;
+    public float runTurnRateDeg = 900f;
 
     private Rigidbody rb;
 
     private float speed;
-    private Vector3 targetDir = Vector3.zero;
-    private float targetSpeed = 0f;
+    private Vector3 targetDir;
+    private float targetSpeed;
+    private float invRunSpeed;
 
-    void Awake()
+    [Header("Ground / Jump")]
+    public Transform groundCheck;
+    public LayerMask groundMask = ~0;
+    public float groundCheckRadius = 0.25f;
+
+    public float jumpHeight = 1.6f;
+
+    public bool IsGrounded { get; private set; }
+    private float _groundIgnoreUntil;
+
+    private const float EPS = 0.0001f;
+
+    private void Awake()
     {
         rb = GetComponent<Rigidbody>();
         speed = walkSpeed;
+        invRunSpeed = runSpeed > EPS ? 1f / runSpeed : 0f;
     }
 
-    public void SetSpeed(float newSpeed)
-    {
-        speed = newSpeed;
-    }
+    public void SetSpeed(float newSpeed) => speed = Mathf.Max(0f, newSpeed);
 
-    public void SetMoveInput(Vector2 input)
+    public void SetMoveInput(Vector3 worldDir)
     {
-        Vector3 dir = new Vector3(input.x, 0f, input.y);
-        dir = Vector3.ClampMagnitude(dir, 1f);
+        worldDir.y = 0f;
+        float sqr = worldDir.sqrMagnitude;
 
-        if (dir.sqrMagnitude > 0.0001f)
+        if (sqr > EPS)
         {
-            targetDir = dir.normalized;
-            targetSpeed = dir.magnitude * speed;
+            if (sqr > 1f) worldDir.Normalize();
+            targetDir = worldDir;
+            targetSpeed = speed;
         }
         else
         {
@@ -54,48 +67,87 @@ public class PlayerMotor : MonoBehaviour
         targetSpeed = 0f;
     }
 
-    /// <summary>
-    /// 현재 실제 수평 속도를 0~1로 정규화 (runSpeed 기준)
-    /// </summary>
     public float GetSpeed01()
     {
         Vector3 v = rb.linearVelocity;
-        Vector3 h = new Vector3(v.x, 0f, v.z);
-        return Mathf.Clamp01(h.magnitude / runSpeed);
+        float hsqr = v.x * v.x + v.z * v.z;
+        float h = (hsqr > EPS) ? Mathf.Sqrt(hsqr) : 0f;
+        return Mathf.Clamp01(h * invRunSpeed);
     }
 
-    void FixedUpdate()
+    private void UpdateGrounded()
     {
+        if (Time.time < _groundIgnoreUntil)
+        {
+            IsGrounded = false;
+            return;
+        }
+
+        Vector3 origin = groundCheck ? groundCheck.position : (transform.position + Vector3.up * 0.1f);
+
+        IsGrounded = Physics.CheckSphere(
+            origin,
+            groundCheckRadius,
+            groundMask,
+            QueryTriggerInteraction.Ignore
+        );
+    }
+
+    public void DoJump()
+    {
+        float g = Mathf.Abs(Physics.gravity.y);
+        float jumpVel = Mathf.Sqrt(2f * g * Mathf.Max(0.01f, jumpHeight));
+
         Vector3 v = rb.linearVelocity;
-        Vector3 curH = new Vector3(v.x, 0f, v.z);
+        v.y = jumpVel;
+        rb.linearVelocity = v;
 
-        float curSpeed = curH.magnitude;
+        IsGrounded = false;
+        _groundIgnoreUntil = Time.time + 0.10f;
+    }
 
-        float a = (targetSpeed > 0.01f) ? accel : decel;
-        float newSpeed = Mathf.MoveTowards(curSpeed, targetSpeed, a * Time.fixedDeltaTime);
+    private void FixedUpdate()
+    {
+        UpdateGrounded();
+
+        if (targetDir == Vector3.zero)
+            targetSpeed = 0f;
+
+        float dt = Time.fixedDeltaTime;
+
+        Vector3 v = rb.linearVelocity;
+
+        Vector3 horizontalVel = new Vector3(v.x, 0f, v.z);
+        float currentSpeed = horizontalVel.magnitude;
+
+        float a = targetSpeed > 0.01f ? accel : decel;
+        float newSpeed = Mathf.MoveTowards(currentSpeed, targetSpeed, a * dt);
 
         Vector3 curDir;
-        if (curSpeed > 0.001f)
-            curDir = curH / curSpeed;
+        if (currentSpeed > 0.001f)
+        {
+            curDir = horizontalVel / currentSpeed;
+        }
         else
+        {
             curDir = (targetDir != Vector3.zero) ? targetDir : transform.forward;
+            curDir.y = 0f;
+            if (curDir.sqrMagnitude > EPS) curDir.Normalize();
+            else curDir = Vector3.forward;
+        }
 
         Vector3 newDir = curDir;
         if (targetDir != Vector3.zero)
         {
-            newDir = Vector3.RotateTowards(
-                curDir,
-                targetDir,
-                Mathf.Deg2Rad * turnRateDeg * Time.fixedDeltaTime,
-                0f
-            );
+            float t = Mathf.Clamp01(currentSpeed / Mathf.Max(EPS, runSpeed));
+            float turn = Mathf.Lerp(walkTurnRateDeg, runTurnRateDeg, t);
+
+            newDir = Vector3.RotateTowards(curDir, targetDir, Mathf.Deg2Rad * turn * dt, 0f);
         }
 
-        Vector3 newH = newDir * newSpeed;
+        rb.linearVelocity = new Vector3(newDir.x * newSpeed, v.y, newDir.z * newSpeed);
 
-        rb.linearVelocity = new Vector3(newH.x, v.y, newH.z);
-
-        if (newH.sqrMagnitude > 0.0001f)
-            transform.rotation = Quaternion.LookRotation(newDir, Vector3.up);
+        if (newDir.sqrMagnitude > EPS)
+            rb.MoveRotation(Quaternion.LookRotation(newDir, Vector3.up));
     }
 }

@@ -1,8 +1,15 @@
-using UnityEngine;
-
-public interface PlayerState
+public abstract class PlayerState
 {
-    public void Enter();
-    public void Update();
-    public void Exit();
+    protected PlayerStateMachine fsm;
+    protected PlayerController controller;
+
+    protected PlayerState(PlayerStateMachine fsm, PlayerController controller)
+    {
+        this.fsm = fsm;
+        this.controller = controller;
+    }
+
+    public abstract void Enter();
+    public abstract void Update();
+    public abstract void Exit();
 }

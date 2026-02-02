@@ -1,12 +1,12 @@
 using UnityEngine;
 
-public class PlayerAnimation : MonoBehaviour
+[RequireComponent(typeof(Animator))]
+public sealed class PlayerAnimation : MonoBehaviour
 {
     private Animator anim;
+    private static readonly int SpeedHash = Animator.StringToHash("Speed");
 
-    static int SpeedHash = Animator.StringToHash("Speed");
-
-    void Awake()
+    private void Awake()
     {
         anim = GetComponent<Animator>();
     }
