@@ -1,39 +1,35 @@
-using UnityEngine;
-
-public class PlayerWalk : PlayerState
+public sealed class PlayerWalk : PlayerState
 {
-    private PlayerStateMachine fsm;
-    private PlayerController controller;
+    public PlayerWalk(PlayerStateMachine fsm, PlayerController c) : base(fsm, c) { }
 
-    public PlayerWalk(PlayerStateMachine fsm, PlayerController controller)
-    {
-        this.fsm = fsm;
-        this.controller = controller;
-    }
-
-    public void Enter()
+    public override void Enter()
     {
         controller.motor.SetSpeed(controller.motor.walkSpeed);
     }
 
-    public void Update()
+    public override void Update()
     {
-        if (!controller.HasMoveInput)
+        if (controller.JumpPressedThisFrame && controller.motor.IsGrounded)
         {
-            controller.motor.StopMove();
-            fsm.ChangeState(new PlayerIdle(fsm, controller));
+            fsm.EnterAir();
             return;
         }
 
-        controller.motor.SetMoveInput(controller.MoveInput);
+        if (!controller.HasMoveInput)
+        {
+            controller.motor.StopMove();
+            fsm.ChangeLocomotion(PlayerStateMachine.Locomotion.Idle);
+            return;
+        }
 
-        controller.playerAnim.SetSpeed01(controller.motor.GetSpeed01());
+        controller.motor.SetMoveInput(controller.GetCameraRelativeMoveDir());
 
-        if (controller.IsRunPressed)
-            fsm.ChangeState(new PlayerRun(fsm, controller));
+        float speed01 = controller.motor.GetSpeed01();
+        controller.playerAnim.SetSpeed01(speed01);
+
+        if (controller.IsRunHeld)
+            fsm.ChangeLocomotion(PlayerStateMachine.Locomotion.Run);
     }
 
-
-
-    public void Exit() { }
+    public override void Exit() { }
 }
