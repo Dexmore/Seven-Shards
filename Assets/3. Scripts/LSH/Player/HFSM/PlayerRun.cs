@@ -1,11 +1,9 @@
-using UnityEngine;
-
-public class PlayerWalk : PlayerState
+public class PlayerRun : PlayerState
 {
     private PlayerStateMachine fsm;
     private PlayerController controller;
 
-    public PlayerWalk(PlayerStateMachine fsm, PlayerController controller)
+    public PlayerRun(PlayerStateMachine fsm, PlayerController controller)
     {
         this.fsm = fsm;
         this.controller = controller;
@@ -13,7 +11,7 @@ public class PlayerWalk : PlayerState
 
     public void Enter()
     {
-        controller.motor.SetSpeed(controller.motor.walkSpeed);
+        controller.motor.SetSpeed(controller.motor.runSpeed);
     }
 
     public void Update()
@@ -29,10 +27,9 @@ public class PlayerWalk : PlayerState
 
         controller.playerAnim.SetSpeed01(controller.motor.GetSpeed01());
 
-        if (controller.IsRunPressed)
-            fsm.ChangeState(new PlayerRun(fsm, controller));
+        if (!controller.IsRunPressed)
+            fsm.ChangeState(new PlayerWalk(fsm, controller));
     }
-
 
 
     public void Exit() { }

@@ -19,12 +19,21 @@ public class PlayerIdle : PlayerState
 
     public void Update()
     {
-        controller.playerAnim.SetSpeed01(0f);
-        if (controller.HasMoveInput)
+        if (!controller.HasMoveInput)
         {
-            fsm.ChangeState(new PlayerWalk(fsm, controller));
+            controller.motor.StopMove();
+            controller.playerAnim.SetSpeed01(controller.motor.GetSpeed01());
+            return;
         }
+
+        if (controller.IsRunPressed)
+            fsm.ChangeState(new PlayerRun(fsm, controller));
+        else
+            fsm.ChangeState(new PlayerWalk(fsm, controller));
     }
+
+
+
 
     public void Exit() { }
 }
