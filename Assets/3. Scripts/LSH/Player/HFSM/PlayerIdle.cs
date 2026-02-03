@@ -1,29 +1,27 @@
-﻿public sealed class PlayerIdle : PlayerState
+﻿using UnityEngine;
+public sealed class PlayerIdle : PlayerState
 {
     public PlayerIdle(PlayerStateMachine fsm, PlayerController c) : base(fsm, c) { }
 
     public override void Enter()
     {
-        controller.motor.SetSpeed(controller.motor.walkSpeed);
-        controller.motor.StopMove();
+        // Idle 들어올 때만 세팅 (매 프레임 X)
+        pc.motor.SetSpeed(pc.motor.walkSpeed);
+        pc.motor.SetMoveInput(Vector3.zero);
     }
 
-    public override void Update()
+    public override void Tick()
     {
-        if (controller.JumpPressedThisFrame && controller.motor.IsGrounded)
+        if (pc.JumpPressedThisFrame && pc.motor.IsGrounded)
         {
             fsm.EnterAir();
             return;
         }
 
-        // 스무스 감속 애니
-        controller.playerAnim.SetSpeed01(controller.motor.GetSpeed01());
+        if (!pc.HasMoveInput)
+            return;
 
-        if (!controller.HasMoveInput) return;
-
-        fsm.ChangeLocomotion(controller.IsRunHeld
-            ? PlayerStateMachine.Locomotion.Run
-            : PlayerStateMachine.Locomotion.Walk);
+        fsm.ChangeLocomotion(pc.IsRunHeld? PlayerStateMachine.Locomotion.Run: PlayerStateMachine.Locomotion.Walk);
     }
 
     public override void Exit() { }

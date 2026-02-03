@@ -3,25 +3,59 @@ using UnityEngine;
 [RequireComponent(typeof(Animator))]
 public sealed class PlayerAnimation : MonoBehaviour
 {
-    private Animator anim;
+    Animator anim;
 
-    private static readonly int SpeedHash = Animator.StringToHash("Speed");
-    private static readonly int IsGroundedHash = Animator.StringToHash("IsGrounded");
-    private static readonly int YVelocityHash = Animator.StringToHash("YVelocity");
+    static readonly int SpeedHash      = Animator.StringToHash("Speed");
+    static readonly int IsGroundedHash = Animator.StringToHash("IsGrounded");
+    static readonly int YVelocityHash  = Animator.StringToHash("YVelocity");
 
-    private void Awake()
+    [Header("Smoothing")]
+    [SerializeField] float speedSmoothTime = 0.12f;
+    [SerializeField] float yVelSmoothTime  = 0.08f;
+
+    [Header("Thresholds (skip Set when tiny change)")]
+    [SerializeField] float speedEpsilon = 0.001f;
+    [SerializeField] float yVelEpsilon  = 0.01f;
+
+    float speedSmoothed;
+    float speedVelRef;
+    float yVelSmoothed;
+    float yVelVelRef;
+
+    float lastSpeedSet = float.NaN;
+    float lastYVelSet  = float.NaN;
+    bool  lastGroundedSet;
+
+    void Awake()
     {
         anim = GetComponent<Animator>();
     }
 
-    public void SetSpeed01(float speed01)
+    public void SetSpeed01(float targetSpeed01)
     {
-        anim.SetFloat(SpeedHash, speed01, 0.12f, Time.deltaTime);
+        speedSmoothed = Mathf.SmoothDamp(speedSmoothed, targetSpeed01, ref speedVelRef, speedSmoothTime, Mathf.Infinity, Time.deltaTime);
+
+        if (!float.IsNaN(lastSpeedSet) && Mathf.Abs(speedSmoothed - lastSpeedSet) < speedEpsilon)
+            return;
+
+        lastSpeedSet = speedSmoothed;
+        anim.SetFloat(SpeedHash, speedSmoothed);
     }
 
-    public void SetAir(bool grounded, float yVel)
+    public void SetAir(bool grounded, float targetYVel)
     {
-        anim.SetBool(IsGroundedHash, grounded);
-        anim.SetFloat(YVelocityHash, yVel);
+        if (grounded != lastGroundedSet)
+        {
+            lastGroundedSet = grounded;
+            anim.SetBool(IsGroundedHash, grounded);
+        }
+
+        yVelSmoothed = Mathf.SmoothDamp(yVelSmoothed, targetYVel, ref yVelVelRef, yVelSmoothTime, Mathf.Infinity, Time.deltaTime);
+
+        if (!float.IsNaN(lastYVelSet) && Mathf.Abs(yVelSmoothed - lastYVelSet) < yVelEpsilon)
+            return;
+
+        lastYVelSet = yVelSmoothed;
+        anim.SetFloat(YVelocityHash, yVelSmoothed);
     }
 }

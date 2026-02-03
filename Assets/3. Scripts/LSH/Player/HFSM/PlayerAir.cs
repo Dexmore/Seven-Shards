@@ -1,33 +1,45 @@
+using UnityEngine;
+
 public sealed class PlayerAir : PlayerState
 {
-    public PlayerAir(PlayerStateMachine fsm, PlayerController c) : base(fsm, c) { }
+    private Vector3 _lastMoveDir;
+
+    public PlayerAir(PlayerStateMachine fsm, PlayerController pc) : base(fsm, pc) { }
 
     public override void Enter()
     {
-        controller.motor.DoJump();
+        pc.motor.DoJump();
+        _lastMoveDir = Vector3.zero;
     }
 
-    public override void Update()
+    public override void Tick()
     {
-        if (controller.HasMoveInput)
-            controller.motor.SetMoveInput(controller.GetCameraRelativeMoveDir());
+        if (pc.HasMoveInput)
+            SetMoveDir(pc.CameraRelativeMoveDir);
         else
-            controller.motor.StopMove();
+            SetMoveDir(Vector3.zero);
 
-        float speed01 = controller.motor.GetSpeed01();
-        controller.playerAnim.SetSpeed01(speed01);
+        if (!pc.motor.IsGrounded)
+            return;
 
-        if (!controller.motor.IsGrounded) return;
-
-        if (!controller.HasMoveInput)
+        if (!pc.HasMoveInput)
         {
             fsm.ChangeLocomotion(PlayerStateMachine.Locomotion.Idle);
             return;
         }
 
-        fsm.ChangeLocomotion(controller.IsRunHeld
+        fsm.ChangeLocomotion(pc.IsRunHeld
             ? PlayerStateMachine.Locomotion.Run
             : PlayerStateMachine.Locomotion.Walk);
+    }
+
+    private void SetMoveDir(Vector3 dir)
+    {
+        if ((dir - _lastMoveDir).sqrMagnitude < 0.0001f)
+            return;
+
+        _lastMoveDir = dir;
+        pc.motor.SetMoveInput(dir);
     }
 
     public override void Exit() { }

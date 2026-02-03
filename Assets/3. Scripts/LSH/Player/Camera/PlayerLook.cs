@@ -4,33 +4,33 @@ using UnityEngine;
 public sealed class PlayerLook : MonoBehaviour
 {
     [Header("Refs")]
-    public Transform cameraPivot;
-    private Rigidbody rb;
+    [SerializeField] Transform cameraPivot;
 
     [Header("Sensitivity")]
-    public float mouseSensitivity = 0.12f;
+    [SerializeField] float mouseSensitivity = 0.12f;
 
     [Header("Pitch Clamp")]
-    public float minPitch = -35f;
-    public float maxPitch = 70f;
+    [SerializeField] float minPitch = -35f;
+    [SerializeField] float maxPitch = 70f;
 
-    private float yaw;
-    private float pitch;
+    Rigidbody rb;
 
-    private Vector2 lookDelta;
+    float yaw;
+    float pitch;
 
-    public float Yaw => yaw;
+    Vector2 lookDeltaAccum;
+    float yawToApply;
+
+    public float Yaw   => yaw;
     public float Pitch => pitch;
 
-    public void SetLookInput(Vector2 delta) => lookDelta = delta;
-
-    private void Awake()
+    void Awake()
     {
         rb = GetComponent<Rigidbody>();
 
         yaw = transform.eulerAngles.y;
 
-        if (cameraPivot != null)
+        if (cameraPivot)
         {
             float p = cameraPivot.localEulerAngles.x;
             if (p > 180f) p -= 360f;
@@ -38,18 +38,34 @@ public sealed class PlayerLook : MonoBehaviour
         }
     }
 
-    private void LateUpdate()
+    public void SetLookInput(Vector2 delta)
     {
-        yaw   += lookDelta.x * mouseSensitivity;
-        pitch -= lookDelta.y * mouseSensitivity;
+        lookDeltaAccum += delta;
+    }
+
+    void Update()
+    {
+        if (lookDeltaAccum.sqrMagnitude < 0.0001f)
+            return;
+
+        float sens = mouseSensitivity;
+
+        yaw   += lookDeltaAccum.x * sens;
+        pitch -= lookDeltaAccum.y * sens;
         pitch = Mathf.Clamp(pitch, minPitch, maxPitch);
 
-        if (cameraPivot != null)
+        yawToApply = yaw;
+        lookDeltaAccum = Vector2.zero;
+    }
+
+    void LateUpdate()
+    {
+        if (cameraPivot)
             cameraPivot.localRotation = Quaternion.Euler(pitch, 0f, 0f);
     }
 
-    private void FixedUpdate()
+    void FixedUpdate()
     {
-        rb.MoveRotation(Quaternion.Euler(0f, yaw, 0f));
+        rb.MoveRotation(Quaternion.Euler(0f, yawToApply, 0f));
     }
 }

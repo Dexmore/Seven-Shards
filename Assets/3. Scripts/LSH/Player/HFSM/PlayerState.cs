@@ -1,15 +1,18 @@
 public abstract class PlayerState
 {
-    protected PlayerStateMachine fsm;
-    protected PlayerController controller;
+    protected readonly PlayerStateMachine fsm;
+    protected readonly PlayerController pc;
 
-    protected PlayerState(PlayerStateMachine fsm, PlayerController controller)
+    protected PlayerState(PlayerStateMachine fsm, PlayerController pc)
     {
         this.fsm = fsm;
-        this.controller = controller;
+        this.pc = pc;
     }
 
-    public abstract void Enter();
-    public abstract void Update();
-    public abstract void Exit();
+    public virtual void Enter() { }
+    public virtual void Exit() { }
+
+    public virtual void Tick() { }
+    public virtual void FixedTick() { }
+    public virtual void LateTick() { }
 }
