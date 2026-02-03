@@ -1,9 +1,13 @@
 ﻿using UnityEngine;
 
+[RequireComponent(typeof(PlayerMotor))]
+[RequireComponent(typeof(PlayerAnimation))]
+[RequireComponent(typeof(PlayerLook))]
 public sealed class PlayerController : MonoBehaviour
 {
     public PlayerMotor motor { get; private set; }
     public PlayerAnimation playerAnim { get; private set; }
+    public PlayerLook look { get; private set; }
 
     private InputSystem_Actions input;
 
@@ -12,6 +16,7 @@ public sealed class PlayerController : MonoBehaviour
 
     public bool IsRunHeld { get; private set; }
     public bool JumpPressedThisFrame { get; private set; }
+    public Vector2 LookInput { get; private set; }
 
     private Transform _camTr;
     private int _camCacheFrame = -1;
@@ -20,6 +25,7 @@ public sealed class PlayerController : MonoBehaviour
     {
         motor = GetComponent<PlayerMotor>();
         playerAnim = GetComponent<PlayerAnimation>();
+        look = GetComponent<PlayerLook>();
         input = new InputSystem_Actions();
     }
 
@@ -31,6 +37,9 @@ public sealed class PlayerController : MonoBehaviour
         MoveInput = input.Player.Move.ReadValue<Vector2>();
         IsRunHeld = input.Player.Run.IsPressed();
         JumpPressedThisFrame = input.Player.Jump.WasPressedThisFrame();
+
+        LookInput = input.Player.Look.ReadValue<Vector2>();
+        look.SetLookInput(LookInput);
     }
 
     public void TickAnimator()
@@ -46,14 +55,12 @@ public sealed class PlayerController : MonoBehaviour
         if (_camCacheFrame != Time.frameCount)
         {
             _camCacheFrame = Time.frameCount;
-
             if (_camTr == null)
             {
                 var cam = Camera.main;
                 _camTr = cam != null ? cam.transform : null;
             }
         }
-
         if (_camTr == null) return Vector3.zero;
 
         Vector3 f = _camTr.forward; f.y = 0f;

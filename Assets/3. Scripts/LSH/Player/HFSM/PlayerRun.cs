@@ -9,6 +9,8 @@ public sealed class PlayerRun : PlayerState
 
     public override void Update()
     {
+        controller.motor.SetSpeed(controller.motor.runSpeed);
+
         if (controller.JumpPressedThisFrame && controller.motor.IsGrounded)
         {
             fsm.EnterAir();
@@ -23,9 +25,6 @@ public sealed class PlayerRun : PlayerState
         }
 
         controller.motor.SetMoveInput(controller.GetCameraRelativeMoveDir());
-
-        float speed01 = controller.motor.GetSpeed01();
-        controller.playerAnim.SetSpeed01(speed01);
 
         if (!controller.IsRunHeld)
             fsm.ChangeLocomotion(PlayerStateMachine.Locomotion.Walk);
