@@ -1,8 +1,5 @@
 ﻿using UnityEngine;
-using UnityEngine.InputSystem;
 
-[RequireComponent(typeof(PlayerMotor))]
-[RequireComponent(typeof(PlayerAnimation))]
 public sealed class PlayerController : MonoBehaviour
 {
     public PlayerMotor motor { get; private set; }
@@ -36,6 +33,12 @@ public sealed class PlayerController : MonoBehaviour
         JumpPressedThisFrame = input.Player.Jump.WasPressedThisFrame();
     }
 
+    public void TickAnimator()
+    {
+        playerAnim.SetSpeed01(motor.GetSpeed01());
+        playerAnim.SetAir(motor.IsGrounded, motor.VerticalVelocity);
+    }
+
     public Vector3 GetCameraRelativeMoveDir()
     {
         if (!HasMoveInput) return Vector3.zero;
@@ -54,7 +57,7 @@ public sealed class PlayerController : MonoBehaviour
         if (_camTr == null) return Vector3.zero;
 
         Vector3 f = _camTr.forward; f.y = 0f;
-        Vector3 r = _camTr.right; r.y = 0f;
+        Vector3 r = _camTr.right;   r.y = 0f;
 
         if (f.sqrMagnitude > 0.0001f) f.Normalize(); else f = Vector3.forward;
         if (r.sqrMagnitude > 0.0001f) r.Normalize(); else r = Vector3.right;
