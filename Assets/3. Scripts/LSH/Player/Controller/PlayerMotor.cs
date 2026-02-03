@@ -125,36 +125,16 @@ public sealed class PlayerMotor : MonoBehaviour
         float a = targetSpeed > 0.01f ? accel : decel;
         float newSpeed = Mathf.MoveTowards(currentSpeed, targetSpeed, a * dt);
 
-        Vector3 curDir;
-        if (currentSpeed > 0.001f)
+        Vector3 moveDir = targetDir;
+        if (moveDir == Vector3.zero)
         {
-            curDir = horizontalVel / currentSpeed;
-        }
-        else
-        {
-            curDir = (targetDir != Vector3.zero) ? targetDir : transform.forward;
-            curDir.y = 0f;
-            if (curDir.sqrMagnitude > EPS) curDir.Normalize();
-            else curDir = Vector3.forward;
+            if (currentSpeed > 0.001f)
+                moveDir = horizontalVel / currentSpeed;
+            else
+                moveDir = Vector3.zero;
         }
 
-        Vector3 newDir = curDir;
-        if (targetDir != Vector3.zero)
-        {
-            float t = Mathf.Clamp01(currentSpeed / Mathf.Max(EPS, runSpeed));
-            float turn = Mathf.Lerp(walkTurnRateDeg, runTurnRateDeg, t);
-
-            newDir = Vector3.RotateTowards(
-                curDir,
-                targetDir,
-                Mathf.Deg2Rad * turn * dt,
-                0f
-            );
-        }
-
-        rb.linearVelocity = new Vector3(newDir.x * newSpeed, v.y, newDir.z * newSpeed);
-
-        if (newDir.sqrMagnitude > EPS)
-            rb.MoveRotation(Quaternion.LookRotation(newDir, Vector3.up));
+        rb.linearVelocity = new Vector3(moveDir.x * newSpeed, v.y, moveDir.z * newSpeed);
     }
+
 }
