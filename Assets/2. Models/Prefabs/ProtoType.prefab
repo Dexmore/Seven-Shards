@@ -2089,13 +2089,12 @@ MonoBehaviour:
   runSpeed: 7
   accel: 25
   decel: 10
-  walkTurnRateDeg: 180
-  runTurnRateDeg: 450
   groundCheck: {fileID: 7950959756045412819}
   groundMask:
     serializedVersion: 2
     m_Bits: 8
   groundCheckRadius: 0.2
+  groundCheckInterval: 0.05
   jumpHeight: 2
 --- !u!114 &1404953401051834848
 MonoBehaviour:
@@ -2127,14 +2126,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PlayerHeadLookIK
   cameraTransform: {fileID: 0}
   aimOrigin: {fileID: 6360077199050612717}
-  lookDistance: 10
+  motor: {fileID: 2836429805809646808}
   weight: 0.8
-  bodyWeight: 0.15
   headWeight: 0.85
-  eyesWeight: 1
   clampWeight: 0.6
-  smooth: 12
+  lookDistance: 10
   disableInAir: 1
+  smooth: 12
 --- !u!1 &7945817584708497667
 GameObject:
   m_ObjectHideFlags: 0

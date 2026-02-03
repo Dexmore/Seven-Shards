@@ -1,20 +1,19 @@
 using UnityEngine;
 
-[RequireComponent(typeof(PlayerController))]
 public class PlayerStateMachine : MonoBehaviour
 {
     public enum Locomotion { Idle, Walk, Run }
 
     public PlayerState Current { get; private set; }
 
-    private PlayerController pc;
+    PlayerController pc;
 
-    private PlayerIdle idle;
-    private PlayerWalk walk;
-    private PlayerRun run;
-    private PlayerAir air;
+    PlayerIdle idle;
+    PlayerWalk walk;
+    PlayerRun run;
+    PlayerAir air;
 
-    private void Awake()
+    void Awake()
     {
         pc = GetComponent<PlayerController>();
 
@@ -22,26 +21,37 @@ public class PlayerStateMachine : MonoBehaviour
         walk = new PlayerWalk(this, pc);
         run  = new PlayerRun(this, pc);
         air  = new PlayerAir(this, pc);
-    }
 
-    private void Start()
-    {
         ChangeState(idle);
     }
 
-    private void Update()
+    void Update()
     {
-        Current?.Update();
+        Current.Tick();
+    }
+
+    void FixedUpdate()
+    {
+        Current.FixedTick();
+    }
+
+    void LateUpdate()
+    {
+        Current.LateTick();
         pc.TickAnimator();
     }
 
     private void ChangeState(PlayerState next)
     {
-        if (Current == next) return;
-        Current?.Exit();
+        if (ReferenceEquals(Current, next)) return;
+
+        if (Current != null)
+            Current.Exit();
+
         Current = next;
         Current.Enter();
     }
+
 
     public void ChangeLocomotion(Locomotion next)
     {
@@ -53,8 +63,5 @@ public class PlayerStateMachine : MonoBehaviour
         }
     }
 
-    public void EnterAir()
-    {
-        ChangeState(air);
-    }
+    public void EnterAir() => ChangeState(air);
 }

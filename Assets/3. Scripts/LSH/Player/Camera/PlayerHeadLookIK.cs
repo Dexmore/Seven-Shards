@@ -4,58 +4,83 @@ using UnityEngine;
 public sealed class PlayerHeadLookIK : MonoBehaviour
 {
     [Header("Refs")]
-    public Transform cameraTransform;
-    public Transform aimOrigin;
+    [SerializeField] Transform cameraTransform;
+    [SerializeField] Transform aimOrigin;
+    [SerializeField] PlayerMotor motor;
 
     [Header("Look At")]
-    public float lookDistance = 10f;
-    [Range(0f, 1f)] public float weight = 0.8f;
-    [Range(0f, 1f)] public float bodyWeight = 0.15f;
-    [Range(0f, 1f)] public float headWeight = 0.85f;
-    [Range(0f, 1f)] public float eyesWeight = 1.0f;
-    [Range(0f, 1f)] public float clampWeight = 0.6f;
+    [Range(0f, 1f)] [SerializeField] float weight = 0.85f;
+    [Range(0f, 1f)] [SerializeField] float headWeight = 1f;
+    [Range(0f, 1f)] [SerializeField] float clampWeight = 0.6f;
+    [SerializeField] float lookDistance = 10f;
 
-    [Header("Smoothing")]
-    public float smooth = 12f;
+    [Header("Performance")]
+    [SerializeField] bool disableInAir = true;
+    [SerializeField] float smooth = 14f;
 
-    public bool disableInAir = false;
+    Animator anim;
 
-    private Animator anim;
-    private Vector3 _targetPosSmoothed;
-    private float _wSmoothed;
+    Vector3 lookTarget;
+    float currentWeight;
 
-    private void Awake()
+    bool wasActiveLastFrame;
+
+    void Awake()
     {
         anim = GetComponent<Animator>();
-    }
 
-    private void Start()
-    {
-        if (cameraTransform == null && Camera.main != null)
+        if (!cameraTransform && Camera.main)
             cameraTransform = Camera.main.transform;
-
-        _targetPosSmoothed = transform.position + transform.forward * lookDistance;
-        _wSmoothed = 0f;
     }
 
-    private void OnAnimatorIK(int layerIndex)
+    void OnAnimatorIK(int layerIndex)
     {
-        if (cameraTransform == null)
+        if (!cameraTransform)
         {
-            anim.SetLookAtWeight(0f);
+            DisableIK();
             return;
         }
 
-        Vector3 origin = aimOrigin ? aimOrigin.position : (transform.position + Vector3.up * 1.6f);
-        Vector3 desired = origin + cameraTransform.forward * lookDistance;
+        bool active = !(disableInAir && motor && !motor.IsGrounded);
 
-        float dt = Time.deltaTime;
-        float k = 1f - Mathf.Exp(-smooth * dt);
+        if (!active)
+        {
+            DisableIK();
+            wasActiveLastFrame = false;
+            return;
+        }
 
-        _targetPosSmoothed = Vector3.Lerp(_targetPosSmoothed, desired, k);
-        _wSmoothed = Mathf.Lerp(_wSmoothed, weight, k);
+        Vector3 origin = aimOrigin
+            ? aimOrigin.position
+            : transform.position + Vector3.up * 1.6f;
 
-        anim.SetLookAtWeight(_wSmoothed, bodyWeight, headWeight, eyesWeight, clampWeight);
-        anim.SetLookAtPosition(_targetPosSmoothed);
+        Vector3 desiredTarget =
+            origin + cameraTransform.forward * lookDistance;
+
+        float k = 1f - Mathf.Exp(-smooth * Time.deltaTime);
+
+        lookTarget = Vector3.Lerp(lookTarget, desiredTarget, k);
+        currentWeight = Mathf.Lerp(currentWeight, weight, k);
+
+        if (!wasActiveLastFrame)
+        {
+            anim.SetLookAtWeight(currentWeight,0f, headWeight, 0f, clampWeight);
+        }
+        else
+        {
+            anim.SetLookAtWeight(currentWeight);
+        }
+
+        anim.SetLookAtPosition(lookTarget);
+        wasActiveLastFrame = true;
+    }
+
+    void DisableIK()
+    {
+        if (currentWeight > 0f)
+        {
+            currentWeight = 0f;
+            anim.SetLookAtWeight(0f);
+        }
     }
 }
