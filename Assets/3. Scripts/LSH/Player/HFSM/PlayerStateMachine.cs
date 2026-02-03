@@ -20,8 +20,8 @@ public class PlayerStateMachine : MonoBehaviour
 
         idle = new PlayerIdle(this, pc);
         walk = new PlayerWalk(this, pc);
-        run = new PlayerRun(this, pc);
-        air = new PlayerAir(this, pc);
+        run  = new PlayerRun(this, pc);
+        air  = new PlayerAir(this, pc);
     }
 
     private void Start()
@@ -32,6 +32,7 @@ public class PlayerStateMachine : MonoBehaviour
     private void Update()
     {
         Current?.Update();
+        pc.TickAnimator();
     }
 
     private void ChangeState(PlayerState next)
@@ -48,7 +49,7 @@ public class PlayerStateMachine : MonoBehaviour
         {
             case Locomotion.Idle: ChangeState(idle); break;
             case Locomotion.Walk: ChangeState(walk); break;
-            case Locomotion.Run: ChangeState(run); break;
+            case Locomotion.Run:  ChangeState(run);  break;
         }
     }
 

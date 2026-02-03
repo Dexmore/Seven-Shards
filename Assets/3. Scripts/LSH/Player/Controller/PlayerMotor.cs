@@ -5,7 +5,7 @@ public sealed class PlayerMotor : MonoBehaviour
 {
     [Header("Speed")]
     public float walkSpeed = 4f;
-    public float runSpeed = 7f;
+    public float runSpeed  = 7f;
 
     [Header("Accel / Decel")]
     public float accel = 25f;
@@ -13,7 +13,7 @@ public sealed class PlayerMotor : MonoBehaviour
 
     [Header("Turn Rate (deg/sec)")]
     public float walkTurnRateDeg = 360f;
-    public float runTurnRateDeg = 900f;
+    public float runTurnRateDeg  = 900f;
 
     private Rigidbody rb;
 
@@ -31,6 +31,8 @@ public sealed class PlayerMotor : MonoBehaviour
 
     public bool IsGrounded { get; private set; }
     private float _groundIgnoreUntil;
+
+    public float VerticalVelocity => rb.linearVelocity.y;
 
     private const float EPS = 0.0001f;
 
@@ -142,7 +144,12 @@ public sealed class PlayerMotor : MonoBehaviour
             float t = Mathf.Clamp01(currentSpeed / Mathf.Max(EPS, runSpeed));
             float turn = Mathf.Lerp(walkTurnRateDeg, runTurnRateDeg, t);
 
-            newDir = Vector3.RotateTowards(curDir, targetDir, Mathf.Deg2Rad * turn * dt, 0f);
+            newDir = Vector3.RotateTowards(
+                curDir,
+                targetDir,
+                Mathf.Deg2Rad * turn * dt,
+                0f
+            );
         }
 
         rb.linearVelocity = new Vector3(newDir.x * newSpeed, v.y, newDir.z * newSpeed);
