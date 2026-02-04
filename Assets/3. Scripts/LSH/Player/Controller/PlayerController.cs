@@ -16,6 +16,8 @@ public class PlayerController : MonoBehaviour
 
     public bool IsRunHeld { get; private set; }
     public bool JumpPressedThisFrame { get; private set; }
+    public bool AttackPressedThisFrame { get; private set; }
+
     public Vector2 LookInput { get; private set; }
 
     public Vector3 CameraRelativeMoveDir { get; private set; }
@@ -45,6 +47,7 @@ public class PlayerController : MonoBehaviour
 
         IsRunHeld = input.Player.Run.IsPressed();
         JumpPressedThisFrame = input.Player.Jump.WasPressedThisFrame();
+        AttackPressedThisFrame = input.Player.Attack.WasPressedThisFrame();
 
         LookInput = input.Player.Look.ReadValue<Vector2>();
         look.SetLookInput(LookInput);
