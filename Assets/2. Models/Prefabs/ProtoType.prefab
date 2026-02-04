@@ -1938,6 +1938,7 @@ GameObject:
   - component: {fileID: 2836429805809646808}
   - component: {fileID: 1404953401051834848}
   - component: {fileID: 2452706027146163843}
+  - component: {fileID: 2269383671177559231}
   m_Layer: 0
   m_Name: ProtoType
   m_TagString: Untagged
@@ -2073,6 +2074,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9afbbcedb024dcf4291aa89826391811, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerAnimation
+  speedSmoothTime: 0.12
+  yVelSmoothTime: 0.08
+  speedEpsilon: 0.001
+  yVelEpsilon: 0.01
 --- !u!114 &2836429805809646808
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2133,6 +2138,42 @@ MonoBehaviour:
   lookDistance: 10
   disableInAir: 1
   smooth: 12
+--- !u!114 &2269383671177559231
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7891353678068539112}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c08f7831bed0d674ba20c09771fdf3ab, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerAttack
+  attackLayer: 1
+  punchingStateName: Punching
+  hookStateName: HookPunch
+  bufferTime: 0.2
+  comboOpen: 0.55
+  comboClose: 0.9
+  moveMode: 1
+  slowMoveScale: 0.35
+  leftHandOrigin: {fileID: 2712998153492055323}
+  rightHandOrigin: {fileID: 4829042908206478865}
+  hitMask:
+    serializedVersion: 2
+    m_Bits: 64
+  triggerInteraction: 1
+  punchHitOpen: 0.2
+  punchHitClose: 0.35
+  punchRange: 1.2
+  punchRadius: 0.35
+  punchDamage: 10
+  hookHitOpen: 0.2
+  hookHitClose: 0.35
+  hookRange: 1.2
+  hookRadius: 1.2
+  hookDamage: 14
 --- !u!1 &7945817584708497667
 GameObject:
   m_ObjectHideFlags: 0

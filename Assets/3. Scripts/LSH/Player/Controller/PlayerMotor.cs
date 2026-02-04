@@ -34,7 +34,7 @@ public sealed class PlayerMotor : MonoBehaviour
 
     public bool IsGrounded { get; private set; }
     public float VerticalVelocity => rb.linearVelocity.y;
-
+    public float MoveScale { get; private set; } = 1f;
     const float EPS = 0.0001f;
 
     void Awake()
@@ -54,6 +54,10 @@ public sealed class PlayerMotor : MonoBehaviour
         speed = Mathf.Max(0f, newSpeed);
     }
 
+    public void SetMoveScale(float scale)
+    {
+        MoveScale = Mathf.Clamp01(scale);
+    }
     public void SetMoveInput(Vector3 worldDir)
     {
         worldDir.y = 0f;
@@ -113,7 +117,7 @@ public sealed class PlayerMotor : MonoBehaviour
         float target = targetSpeed;
         float a = target > currentSpeed ? accel : decel;
 
-        currentSpeed = Mathf.MoveTowards(currentSpeed, target,a * dt);
+        currentSpeed = Mathf.MoveTowards(currentSpeed, target * MoveScale,a * dt);
 
         Vector3 dir =targetDir.sqrMagnitude > EPS? targetDir: (horizontal.sqrMagnitude > EPS ? horizontal.normalized : Vector3.zero);
 
