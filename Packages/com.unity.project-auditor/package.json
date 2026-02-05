@@ -1,0 +1,31 @@
+{
+  "name": "com.unity.project-auditor",
+  "version": "1.0.2",
+  "displayName": "Project Auditor",
+  "unity": "2021.3",
+  "description": "Project Auditor is a static analysis tool that analyzes assets, settings, and scripts of the Unity project and produces a report containing: Code and Settings Diagnostics, the last BuildReport, and assets information.",
+  "keywords": [
+    "performance",
+    "analysis"
+  ],
+  "dependencies": {
+    "com.unity.nuget.mono-cecil": "1.10.1",
+    "com.unity.nuget.newtonsoft-json": "3.2.1"
+  },
+  "relatedPackages": {
+    "com.unity.project-auditor.tests": "1.0.1"
+  },
+  "_upm": {
+    "changelog": "### Changed\n* Don't suggest switching Physics 2D update mode to Script for now.\n\n### Fixed\n* Fixed an issue where Project Auditor exhibited compilation issues on certain versions of the Editor.\n* Fixed link to help pages.\n* Fix for PROFB-273; Change summary screen message when an area is not analyzed.\n* Fix for PROFB-274; Added dividers between the foldouts on the shader variant page.\n* Fix for PROFB-277; change text for \"1 ignored are hidden\".\n* Fix for PROFB-278; 1 items changed to 1 item(s) in the table.\n* Fix for PROFB-279; Build steps all show as info until you hit refresh.\n* Fix for PROFB-280; Removed Path option from the Build Size context menu.\n* Fix for PROFB-281; Unable to sort columns on Build - Build Size screens.\n* Fix for PROFB-284; change references to Texture Streaming when it's now called Mipmap Streaming.\n* Fix for PROFB-285; fix for not being able to hide info compiler messages in the compiler messages view.\n* Fix for PROFB-286; fix performance issues when selecting lots of table items.\n* Fix for PROFB-287; improve documentation for installation instructions.\n* Fix for PROFB-289; exclude shaders that are Hidden from asset issues.\n* Fix for PROFB-290; fix settings links for Physics/Physics 2D.\n* Fix for PROFB-291; issue where rendering path recommendations would show for the wrong pipeline.\n* Fix for PROFB-300; file extensions would sometimes throw because a file didn't have one.\n* Fix for PROFB-310; fix for Analyzing assets causing shader issues to vanish.\n* Fix for PROFB-314; speculative attempt to fix out of memory crash reported on Discussions."
+  },
+  "upmCi": {
+    "footprint": "ba5249b7706d61827d081f245aaf1879e9020ade"
+  },
+  "documentationUrl": "https://docs.unity3d.com/Packages/com.unity.project-auditor@1.0/manual/index.html",
+  "repository": {
+    "url": "https://github.cds.internal.unity3d.com/unity/ProjectAuditor.git",
+    "type": "git",
+    "revision": "7b3e602b8da35bf1c15ed936c802cd1c91a0e007"
+  },
+  "_fingerprint": "6cc18ad506e914d48b53257167e840431c0fae95"
+}

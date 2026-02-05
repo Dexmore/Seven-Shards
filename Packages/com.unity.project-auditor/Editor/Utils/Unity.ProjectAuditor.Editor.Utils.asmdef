@@ -1,0 +1,39 @@
+{
+    "name": "Unity.ProjectAuditor.Editor.Utils",
+    "rootNamespace": "",
+    "references": [],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "Newtonsoft.Json.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [
+        {
+            "name": "Unity",
+            "expression": "2021.2",
+            "define": "PA_CAN_USE_COMPUTESHADER_KEYWORDSPACE"
+        },
+        {
+            "name": "Unity",
+            "expression": "2022.2",
+            "define": "PA_CAN_USE_COMPUTEMIPCHAINSIZE"
+        },
+        {
+            "name": "Unity",
+            "expression": "2021.3.7",
+            "define": "PA_UNITY_2021_3_7_OR_NEWER"
+        },
+        {
+            "name": "Unity",
+            "expression": "2022.3.5",
+            "define": "PA_UNITY_2022_3_5_OR_NEWER"
+        }
+    ],
+    "noEngineReferences": false
+}

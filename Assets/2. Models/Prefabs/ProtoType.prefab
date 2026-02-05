@@ -2174,6 +2174,8 @@ MonoBehaviour:
   hookRange: 1.2
   hookRadius: 1.2
   hookDamage: 14
+  hitBufferSize: 32
+  damageableCacheCapacity: 128
 --- !u!1 &7945817584708497667
 GameObject:
   m_ObjectHideFlags: 0
