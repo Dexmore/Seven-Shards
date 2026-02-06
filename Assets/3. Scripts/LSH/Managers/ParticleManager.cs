@@ -16,38 +16,30 @@ public sealed class ParticleManager : MonoBehaviour
     {
         public FXType type;
         public ParticleSystem prefab;
-
         [Min(0)] public int preload = 10;
-
-        [Tooltip("풀 최대 개수. 0이면 무제한(비추천)")]
-        [Min(0)] public int maxCount = 30;
+        [Min(0), Tooltip("풀 최대 개수. 0이면 무제한(비추천)")] public int maxCount = 30;
     }
 
     [Header("FX Database")]
     [SerializeField] private FXEntry[] fxEntries;
-
     [Header("Runtime")]
-    [Tooltip("활성 파티클 종료 체크 주기(초). 0.1이면 1초에 10번만 체크")]
-    [SerializeField] private float pollInterval = 0.10f;
+    [SerializeField, Tooltip("활성 파티클 종료 체크 주기(초). 0.1이면 1초에 10번만 체크")] private float pollInterval = 0.10f;
+    [SerializeField, Tooltip("이 시간 지나도 살아있으면 강제 종료 후 회수(무한생존/렉 방지)")] private float hardTimeout = 5f;
 
-    [Tooltip("이 시간 지나도 살아있으면 강제 종료 후 회수(무한생존/렉 방지)")]
-    [SerializeField] private float hardTimeout = 5f;
+    // 배열 기반 풀/프리팹/카운트
+    private Queue<ParticleSystem>[] pools;
+    private ParticleSystem[] prefabs;
+    private int[] totalCounts;
+    private int[] maxCounts;
 
-    // 풀/프리팹/카운트
-    private readonly Dictionary<FXType, Queue<ParticleSystem>> pool = new();
-    private readonly Dictionary<FXType, ParticleSystem> prefab = new();
-    private readonly Dictionary<FXType, int> totalCount = new();
-    private readonly Dictionary<FXType, int> maxCount = new();
-
-    // 활성 추적(코루틴 없이 회수)
-    private struct Active
+    // 활성 파티클 정보
+    private struct ActiveEntry
     {
-        public FXType type;
+        public ParticleSystem ps;
         public float startTime;
+        public int typeIdx;
     }
-
-    private readonly Dictionary<ParticleSystem, Active> activeMap = new(256);
-    private readonly List<ParticleSystem> activeList = new(256);
+    private List<ActiveEntry> activeList;
 
     float nextPollTime;
 
@@ -61,15 +53,14 @@ public sealed class ParticleManager : MonoBehaviour
 
     void Build()
     {
-        pool.Clear();
-        prefab.Clear();
-        totalCount.Clear();
-        maxCount.Clear();
-        activeMap.Clear();
-        activeList.Clear();
+        int typeCount = System.Enum.GetValues(typeof(FXType)).Length;
+        pools      = new Queue<ParticleSystem>[typeCount];
+        prefabs    = new ParticleSystem[typeCount];
+        totalCounts= new int[typeCount];
+        maxCounts  = new int[typeCount];
+        activeList = new List<ActiveEntry>(256);
 
         if (fxEntries == null) return;
-
         foreach (var e in fxEntries)
         {
             if (e == null || e.prefab == null)
@@ -77,141 +68,102 @@ public sealed class ParticleManager : MonoBehaviour
                 Debug.LogWarning("[ParticleManager] FXEntry prefab is null.");
                 continue;
             }
-
-            prefab[e.type] = e.prefab;
-            pool[e.type] = new Queue<ParticleSystem>(Mathf.Max(1, e.preload));
-
-            totalCount[e.type] = 0;
-            maxCount[e.type] = e.maxCount;
-
+            int idx = (int)e.type;
+            prefabs[idx] = e.prefab;
+            pools[idx] = new Queue<ParticleSystem>(Mathf.Max(1, e.preload));
+            totalCounts[idx] = 0;
+            maxCounts[idx] = e.maxCount;
             for (int i = 0; i < e.preload; i++)
-                CreateAndEnqueue(e.type);
+                CreateAndEnqueue(idx);
         }
     }
 
-    bool CreateAndEnqueue(FXType type)
+    bool CreateAndEnqueue(int typeIdx)
     {
-        if (!prefab.TryGetValue(type, out var pf) || pf == null) return false;
-
-        int max = maxCount.TryGetValue(type, out var m) ? m : 0;
-        int total = totalCount.TryGetValue(type, out var t) ? t : 0;
-
-        // ✅ 무한 생성 방지
+        if (prefabs == null || typeIdx < 0 || typeIdx >= prefabs.Length) return false;
+        var pf = prefabs[typeIdx];
+        if (!pf) return false;
+        int max   = maxCounts[typeIdx];
+        int total = totalCounts[typeIdx];
         if (max > 0 && total >= max) return false;
-
         var ps = Instantiate(pf, transform);
         ps.gameObject.SetActive(false);
-
-        // ✅ 중요: 재사용 시 잔여 제거를 위해 Stop+Clear 가능한 상태 유지
-        // (여기서 별도 stopAction/callback 필요 없음)
-
-        totalCount[type] = total + 1;
-        pool[type].Enqueue(ps);
+        totalCounts[typeIdx] = total + 1;
+        pools[typeIdx].Enqueue(ps);
         return true;
     }
 
-    /// <summary>
-    /// 반드시 풀에서 꺼내 재생. 풀 고갈이면 maxCount 내에서만 생성.
-    /// </summary>
     public ParticleSystem Play(FXType type, Vector3 pos, Quaternion rot)
     {
-        if (!pool.TryGetValue(type, out var q))
+        if (pools == null) return null;
+        int idx = (int)type;
+        if (idx < 0 || idx >= pools.Length || pools[idx] == null)
         {
             Debug.LogWarning($"[ParticleManager] Pool not registered: {type}");
             return null;
         }
-
-        // ✅ 풀에 없으면: 생성(가능한 경우에만) 후 다시 시도
+        var q = pools[idx];
         if (q.Count == 0)
         {
-            if (!CreateAndEnqueue(type) || q.Count == 0)
-            {
-                // maxCount 초과 등으로 생성 불가 → 그냥 스킵(렉 방지)
-                return null;
-            }
+            if (!CreateAndEnqueue(idx) || q.Count == 0) return null;
         }
-
-        // ✅ 여기서 반드시 "프리로드로 만든 비활성 오브젝트"를 꺼내쓴다
         var ps = q.Dequeue();
-
-        // 세팅
         ps.transform.SetPositionAndRotation(pos, rot);
         ps.gameObject.SetActive(true);
-
-        // 잔여 제거 후 재생
         ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
         ps.Play(true);
-
-        // 활성 등록
-        activeMap[ps] = new Active { type = type, startTime = Time.time };
-        activeList.Add(ps);
-
+        if (activeList == null) activeList = new List<ActiveEntry>(64);
+        activeList.Add(new ActiveEntry { ps = ps, startTime = Time.time, typeIdx = idx });
         return ps;
     }
 
     void Update()
     {
-        if (activeList.Count == 0) return;
-
-        // ✅ 폴링은 pollInterval마다만 (코루틴 0)
+        if (activeList == null || activeList.Count == 0) return;
         if (Time.time < nextPollTime) return;
         nextPollTime = Time.time + pollInterval;
-
         for (int i = activeList.Count - 1; i >= 0; i--)
         {
-            var ps = activeList[i];
+            var entry = activeList[i];
+            var ps = entry.ps;
             if (!ps)
             {
                 activeList.RemoveAt(i);
                 continue;
             }
-
-            if (!activeMap.TryGetValue(ps, out var a))
-            {
-                activeList.RemoveAt(i);
-                continue;
-            }
-
-            // ✅ 너무 오래 살아있으면 강제 종료 후 회수
-            if (hardTimeout > 0f && (Time.time - a.startTime) >= hardTimeout)
+            if (hardTimeout > 0f && (Time.time - entry.startTime) >= hardTimeout)
             {
                 ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
-                Return(ps, a.type, i);
+                Return(i);
                 continue;
             }
-
-            // ✅ 자식 포함 완전 종료면 회수
-            if (!ps.IsAlive(true))
-            {
-                Return(ps, a.type, i);
-            }
+            if (!ps.IsAlive(true)) Return(i);
         }
     }
 
-    void Return(ParticleSystem ps, FXType type, int activeIndex)
+    void Return(int activeIndex)
     {
-        activeMap.Remove(ps);
+        if (activeList == null || activeIndex < 0 || activeIndex >= activeList.Count) return;
+        var entry = activeList[activeIndex];
         activeList.RemoveAt(activeIndex);
-
+        var ps = entry.ps;
+        int typeIdx = entry.typeIdx;
+        if (!ps || pools == null || typeIdx < 0 || typeIdx >= pools.Length) return;
         ps.transform.SetParent(transform, false);
         ps.gameObject.SetActive(false);
-
-        pool[type].Enqueue(ps);
+        pools[typeIdx].Enqueue(ps);
     }
 
-    // 선택: 씬 전환/리셋 시 전체 회수
     public void StopAllAndReturn()
     {
+        if (activeList == null) return;
         for (int i = activeList.Count - 1; i >= 0; i--)
         {
-            var ps = activeList[i];
+            var entry = activeList[i];
+            var ps = entry.ps;
             if (!ps) continue;
-
-            if (activeMap.TryGetValue(ps, out var a))
-            {
-                ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
-                Return(ps, a.type, i);
-            }
+            ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+            Return(i);
         }
     }
 }

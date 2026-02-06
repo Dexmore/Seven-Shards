@@ -67,8 +67,7 @@ public sealed class PlayerAttack : MonoBehaviour
     int lastStateHash;
 
     Collider[] hitCols;
-    int[] hitIds;
-    int hitIdCount;
+    HashSet<int> hitIds;
 
     struct DmgEntry { public IDamageable dmg; public bool has; }
     Dictionary<int, DmgEntry> dmgCache;
@@ -79,12 +78,10 @@ public sealed class PlayerAttack : MonoBehaviour
     {
         anim = GetComponent<Animator>();
         pc   = GetComponent<PlayerController>();
-
         punchHash = Animator.StringToHash(punchingStateName);
         hookHash  = Animator.StringToHash(hookStateName);
-
         hitCols  = new Collider[Mathf.Max(8, hitBufferSize)];
-        hitIds   = new int[Mathf.Max(16, hitBufferSize)];
+        hitIds   = new HashSet<int>(Mathf.Max(16, hitBufferSize));
         dmgCache = new Dictionary<int, DmgEntry>(damageableCacheCapacity);
     }
 
@@ -93,29 +90,23 @@ public sealed class PlayerAttack : MonoBehaviour
         AnimatorStateInfo st = anim.IsInTransition(attackLayer)
             ? anim.GetNextAnimatorStateInfo(attackLayer)
             : anim.GetCurrentAnimatorStateInfo(attackLayer);
-
         int stateHash = st.shortNameHash;
         float t = st.normalizedTime;
         float time01 = t - Mathf.Floor(t);
-
         bool isPunching = stateHash == punchHash;
         bool isHook     = stateHash == hookHash;
         bool attacking  = isPunching || isHook;
-
         if (attacking != wasAttacking)
         {
             wasAttacking = attacking;
             hitConsumed = false;
-            hitIdCount = 0;
+            hitIds.Clear();
             lastStateHash = 0;
-
             if (attacking)
             {
                 pc.motor.SetMoveScale(
                     moveMode == AttackMoveMode.Full ? 1f :
-                    moveMode == AttackMoveMode.Slow ? slowMoveScale : 0f
-                );
-
+                    moveMode == AttackMoveMode.Slow ? slowMoveScale : 0f);
                 if (moveMode == AttackMoveMode.Lock)
                     pc.motor.SetMoveInput(Vector3.zero);
             }
@@ -127,7 +118,6 @@ public sealed class PlayerAttack : MonoBehaviour
                 return;
             }
         }
-
         if (pc.AttackPressedThisFrame)
         {
             if (isPunching)
@@ -138,7 +128,6 @@ public sealed class PlayerAttack : MonoBehaviour
                 anim.SetTrigger(AttackTrig);
             }
         }
-
         if (isPunching && !comboSent && Time.time <= bufferedUntil)
         {
             if (time01 >= comboOpen && time01 <= comboClose)
@@ -148,102 +137,63 @@ public sealed class PlayerAttack : MonoBehaviour
                 bufferedUntil = 0f;
             }
         }
-
         if (stateHash != lastStateHash)
         {
             lastStateHash = stateHash;
             hitConsumed = false;
-            hitIdCount = 0;
+            hitIds.Clear();
         }
-
         if (hitConsumed) return;
-
         if (isPunching)
             TryHit(time01, punchHitOpen, punchHitClose, punchRange, punchRadius, punchDamage, leftHandOrigin, punchFX);
         else if (isHook)
             TryHit(time01, hookHitOpen, hookHitClose, hookRange, hookRadius, hookDamage, rightHandOrigin, hookFX);
     }
 
-    void TryHit(
-        float t01, float open, float close,
-        float range, float radius, float dmg,
-        Transform originTr,
-        ParticleManager.FXType fxType)
+    void TryHit(float t01, float open, float close, float range, float radius, float dmg,
+                Transform originTr, ParticleManager.FXType fxType)
     {
         if (t01 + EPS < open || t01 - EPS > close) return;
-
         hitConsumed = true;
-        hitIdCount = 0;
-
+        hitIds.Clear();
         Vector3 origin = originTr ? originTr.position : transform.position;
         Vector3 center = origin + transform.forward * range;
-
         int count;
         while (true)
         {
             count = Physics.OverlapSphereNonAlloc(center, radius, hitCols, hitMask, triggerInteraction);
             if (count < hitCols.Length || hitCols.Length >= 256) break;
-
             hitCols = new Collider[hitCols.Length * 2];
         }
-
         for (int i = 0; i < count; i++)
         {
             Collider col = hitCols[i];
             if (!col) continue;
-
             Transform root = col.attachedRigidbody ? col.attachedRigidbody.transform.root : col.transform.root;
             int id = root.GetInstanceID();
-
-            if (hitIdCount >= hitIds.Length)
-            {
-                var newArr = new int[hitIds.Length * 2];
-                System.Array.Copy(hitIds, newArr, hitIds.Length);
-                hitIds = newArr;
-            }
-
-            bool alreadyHit = false;
-            for (int h = 0; h < hitIdCount; h++)
-            {
-                if (hitIds[h] == id) { alreadyHit = true; break; }
-            }
-            if (alreadyHit) continue;
-
-            hitIds[hitIdCount++] = id;
-
+            if (!hitIds.Add(id)) continue;
             if (TryGetDmg(root, id, out var d))
             {
                 Vector3 hitPos = col.ClosestPoint(origin);
-
-                Vector3 hitNormal = (hitPos - origin);
+                Vector3 hitNormal = hitPos - origin;
                 if (hitNormal.sqrMagnitude < 0.0001f)
                     hitNormal = -transform.forward;
                 else
                     hitNormal.Normalize();
-
                 d.TakeDamage(dmg, hitPos, hitNormal);
-
                 if (HitFeedbackManager.I != null)
                 {
                     HitFeedbackManager.I.OnHit(
                         fxType == ParticleManager.FXType.Hit_Punch ? HitFeedbackManager.HitKind.Punch : HitFeedbackManager.HitKind.Hook,
-                        hitPos
-                    );
+                        hitPos);
                 }
-                
                 if (spawnFXOnHit && ParticleManager.I != null)
                 {
-                    ParticleManager.I.Play(
-                        fxType,
-                        hitPos,
-                        Quaternion.LookRotation(hitNormal)
-                    );
+                    ParticleManager.I.Play(fxType, hitPos, Quaternion.LookRotation(hitNormal));
                 }
-
                 AudioManager.I.PlaySFX(
                     fxType == ParticleManager.FXType.Hit_Punch ? AudioManager.SFXType.PunchHit : AudioManager.SFXType.HookHit,
-                    hitPos
-                );
+                    hitPos);
             }
         }
     }
@@ -255,7 +205,6 @@ public sealed class PlayerAttack : MonoBehaviour
             dmg = e.dmg;
             return e.has && dmg != null;
         }
-
         dmg = root.GetComponentInChildren<IDamageable>();
         dmgCache[id] = new DmgEntry { dmg = dmg, has = dmg != null };
         return dmg != null;
