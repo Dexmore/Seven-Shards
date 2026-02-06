@@ -120,7 +120,7 @@ Material:
     - _Glossiness: 0
     - _GlossyReflections: 0
     - _Glow_Thickness: 0.08
-    - _Hight_Cutoff: 2
+    - _Hight_Cutoff: 0
     - _Hight_cutoff: 2.18
     - _Metallic: 0
     - _Noise_Scale: 160

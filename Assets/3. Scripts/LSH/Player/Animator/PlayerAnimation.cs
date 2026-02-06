@@ -58,4 +58,32 @@ public sealed class PlayerAnimation : MonoBehaviour
         lastYVelSet = yVelSmoothed;
         anim.SetFloat(YVelocityHash, yVelSmoothed);
     }
+
+    static readonly int MoveXHash = Animator.StringToHash("MoveX");
+    static readonly int MoveYHash = Animator.StringToHash("MoveY");
+
+    [SerializeField] float moveSmoothTime = 0.10f;
+    [SerializeField] float moveEpsilon = 0.001f;
+
+    float moveXSmoothed, moveYSmoothed;
+    float moveXVelRef, moveYVelRef;
+    float lastMoveXSet = float.NaN, lastMoveYSet = float.NaN;
+
+    public void SetMoveXY(Vector2 moveInput)
+    {
+        moveXSmoothed = Mathf.SmoothDamp(moveXSmoothed, moveInput.x, ref moveXVelRef, moveSmoothTime, Mathf.Infinity, Time.deltaTime);
+        moveYSmoothed = Mathf.SmoothDamp(moveYSmoothed, moveInput.y, ref moveYVelRef, moveSmoothTime, Mathf.Infinity, Time.deltaTime);
+
+        if (float.IsNaN(lastMoveXSet) || Mathf.Abs(moveXSmoothed - lastMoveXSet) >= moveEpsilon)
+        {
+            lastMoveXSet = moveXSmoothed;
+            anim.SetFloat(MoveXHash, moveXSmoothed);
+        }
+
+        if (float.IsNaN(lastMoveYSet) || Mathf.Abs(moveYSmoothed - lastMoveYSet) >= moveEpsilon)
+        {
+            lastMoveYSet = moveYSmoothed;
+            anim.SetFloat(MoveYHash, moveYSmoothed);
+        }
+    }
 }
