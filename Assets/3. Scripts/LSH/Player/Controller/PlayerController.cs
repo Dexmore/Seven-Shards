@@ -45,7 +45,13 @@ public class PlayerController : MonoBehaviour
         MoveInput = input.Player.Move.ReadValue<Vector2>();
         HasMoveInput = MoveInput.sqrMagnitude > 0.01f;
 
+        // Shift 달리기
         IsRunHeld = input.Player.Run.IsPressed();
+
+        // ✅ 뒤로 이동이면 달리기 막기
+        if (MoveInput.y < -0.01f)
+            IsRunHeld = false;
+
         JumpPressedThisFrame = input.Player.Jump.WasPressedThisFrame();
         AttackPressedThisFrame = input.Player.Attack.WasPressedThisFrame();
 
@@ -60,6 +66,7 @@ public class PlayerController : MonoBehaviour
 
         CameraRelativeMoveDir = ComputeCameraRelativeMoveDir();
     }
+
 
     void TryCacheMainCamera()
     {
@@ -92,7 +99,9 @@ public class PlayerController : MonoBehaviour
 
     public void TickAnimator()
     {
+        playerAnim.SetMoveXY(MoveInput);
         playerAnim.SetSpeed01(motor.GetSpeed01());
         playerAnim.SetAir(motor.IsGrounded, motor.VerticalVelocity);
     }
+
 }
