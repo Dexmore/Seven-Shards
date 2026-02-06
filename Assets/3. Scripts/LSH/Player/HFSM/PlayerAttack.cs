@@ -43,6 +43,11 @@ public sealed class PlayerAttack : MonoBehaviour
     [SerializeField] float hookRadius = 0.40f;
     [SerializeField] float hookDamage = 14f;
 
+    [Header("Hit FX")]
+    [SerializeField] ParticleManager.FXType punchFX = ParticleManager.FXType.Hit_Punch;
+    [SerializeField] ParticleManager.FXType hookFX  = ParticleManager.FXType.Hit_Hook;
+    [SerializeField] bool spawnFXOnHit = true;
+
     [Header("Buffers")]
     [SerializeField] int hitBufferSize = 32;
     [SerializeField] int damageableCacheCapacity = 128;
@@ -62,7 +67,7 @@ public sealed class PlayerAttack : MonoBehaviour
     int lastStateHash;
 
     Collider[] hitCols;
-    readonly int[] hitIds = new int[64];
+    int[] hitIds;
     int hitIdCount;
 
     struct DmgEntry { public IDamageable dmg; public bool has; }
@@ -79,6 +84,7 @@ public sealed class PlayerAttack : MonoBehaviour
         hookHash  = Animator.StringToHash(hookStateName);
 
         hitCols  = new Collider[Mathf.Max(8, hitBufferSize)];
+        hitIds   = new int[Mathf.Max(16, hitBufferSize)];
         dmgCache = new Dictionary<int, DmgEntry>(damageableCacheCapacity);
     }
 
@@ -153,12 +159,16 @@ public sealed class PlayerAttack : MonoBehaviour
         if (hitConsumed) return;
 
         if (isPunching)
-            TryHit(time01, punchHitOpen, punchHitClose, punchRange, punchRadius, punchDamage, leftHandOrigin);
-        else
-            TryHit(time01, hookHitOpen, hookHitClose, hookRange, hookRadius, hookDamage, rightHandOrigin);
+            TryHit(time01, punchHitOpen, punchHitClose, punchRange, punchRadius, punchDamage, leftHandOrigin, punchFX);
+        else if (isHook)
+            TryHit(time01, hookHitOpen, hookHitClose, hookRange, hookRadius, hookDamage, rightHandOrigin, hookFX);
     }
 
-    void TryHit(float t01, float open, float close, float range, float radius, float dmg, Transform originTr)
+    void TryHit(
+        float t01, float open, float close,
+        float range, float radius, float dmg,
+        Transform originTr,
+        ParticleManager.FXType fxType)
     {
         if (t01 + EPS < open || t01 - EPS > close) return;
 
@@ -168,10 +178,14 @@ public sealed class PlayerAttack : MonoBehaviour
         Vector3 origin = originTr ? originTr.position : transform.position;
         Vector3 center = origin + transform.forward * range;
 
-        int count = Physics.OverlapSphereNonAlloc(center, radius, hitCols, hitMask, triggerInteraction);
+        int count;
+        while (true)
+        {
+            count = Physics.OverlapSphereNonAlloc(center, radius, hitCols, hitMask, triggerInteraction);
+            if (count < hitCols.Length || hitCols.Length >= 256) break;
 
-        if (count == hitCols.Length && hitCols.Length < 256)
             hitCols = new Collider[hitCols.Length * 2];
+        }
 
         for (int i = 0; i < count; i++)
         {
@@ -181,15 +195,56 @@ public sealed class PlayerAttack : MonoBehaviour
             Transform root = col.attachedRigidbody ? col.attachedRigidbody.transform.root : col.transform.root;
             int id = root.GetInstanceID();
 
+            if (hitIdCount >= hitIds.Length)
+            {
+                var newArr = new int[hitIds.Length * 2];
+                System.Array.Copy(hitIds, newArr, hitIds.Length);
+                hitIds = newArr;
+            }
+
+            bool alreadyHit = false;
             for (int h = 0; h < hitIdCount; h++)
-                if (hitIds[h] == id) goto NEXT;
+            {
+                if (hitIds[h] == id) { alreadyHit = true; break; }
+            }
+            if (alreadyHit) continue;
 
             hitIds[hitIdCount++] = id;
 
             if (TryGetDmg(root, id, out var d))
-                d.TakeDamage(dmg);
+            {
+                Vector3 hitPos = col.ClosestPoint(origin);
 
-        NEXT:;
+                Vector3 hitNormal = (hitPos - origin);
+                if (hitNormal.sqrMagnitude < 0.0001f)
+                    hitNormal = -transform.forward;
+                else
+                    hitNormal.Normalize();
+
+                d.TakeDamage(dmg, hitPos, hitNormal);
+
+                if (HitFeedbackManager.I != null)
+                {
+                    HitFeedbackManager.I.OnHit(
+                        fxType == ParticleManager.FXType.Hit_Punch ? HitFeedbackManager.HitKind.Punch : HitFeedbackManager.HitKind.Hook,
+                        hitPos
+                    );
+                }
+                
+                if (spawnFXOnHit && ParticleManager.I != null)
+                {
+                    ParticleManager.I.Play(
+                        fxType,
+                        hitPos,
+                        Quaternion.LookRotation(hitNormal)
+                    );
+                }
+
+                AudioManager.I.PlaySFX(
+                    fxType == ParticleManager.FXType.Hit_Punch ? AudioManager.SFXType.PunchHit : AudioManager.SFXType.HookHit,
+                    hitPos
+                );
+            }
         }
     }
 
