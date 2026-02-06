@@ -10,13 +10,13 @@ using System.Reflection;
 [InitializeOnLoad]
 public class ReadmeEditor : Editor {
 	
-	static string kShowedReadmeSessionStateName = "ReadmeEditor.showedReadme";
+	static readonly string kShowedReadmeSessionStateName = "ReadmeEditor.showedReadme";
 	
-	static float kSpace = 16f;
+	static readonly float kSpace = 16f;
 	
 	static ReadmeEditor()
-	{
-		EditorApplication.delayCall += SelectReadmeAutomatically;
+    {
+        EditorApplication.delayCall += SelectReadmeAutomatically;
 	}
 	
 	static void SelectReadmeAutomatically()
